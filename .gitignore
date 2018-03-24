@@ -240,3 +240,8 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+__pycache__/
+/mnistCUDNN/data/t10k-labels.idx1-ubyte
+/mnistCUDNN/data/t10k-images.idx3-ubyte
+/chainer/state
+/chainer/model
