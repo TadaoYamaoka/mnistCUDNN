@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
 			const int itr_num = numberOfImages.val / batch_size / gpu_num;
 			for (itr_th = 0; itr_th < itr_num; itr_th++)
 			{
-				float* x = images + (IMAGE_H * IMAGE_W) * itr_th;
+				float* x = images + (IMAGE_H * IMAGE_W) * itr_th * (gpu + 1);
 
 				auto start = chrono::system_clock::now();
 				nn.foward(x, (float*)y);
