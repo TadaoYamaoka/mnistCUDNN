@@ -71,10 +71,6 @@ int main(int argc, char *argv[])
 	msb_unsigned_int_t columns;
 	ifs >> columns;
 
-	NN nn;
-
-	nn.load_model("../chainer/model");
-
 	// read all test images
 	float *images = new float[IMAGE_H * IMAGE_W * numberOfImages.val];
 	for (int i = 0; i < numberOfImages.val; i++) {
@@ -98,10 +94,13 @@ int main(int argc, char *argv[])
 		int& itr_th = itr[gpu];
 		auto& elapsed_time_th = elapsed_time[gpu];
 
-		th[gpu] = thread([&itr_th, &elapsed_time_th, images, gpu, &nn, numberOfImages] {
-			NN::y_t y;
-
+		th[gpu] = thread([&itr_th, &elapsed_time_th, images, gpu, numberOfImages] {
 			checkCudaErrors(cudaSetDevice(gpu));
+
+			NN nn;
+			nn.load_model("../chainer/model");
+
+			NN::y_t y;
 
 			const int itr_num = numberOfImages.val / batch_size / gpu_num;
 			for (itr_th = 0; itr_th < itr_num; itr_th++)
