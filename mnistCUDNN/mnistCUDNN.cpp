@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
 	vector<int> itr(gpu_num);
 	vector<chrono::system_clock::duration> elapsed_time(gpu_num);
 
+	auto start_toal = chrono::system_clock::now();
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		elapsed_time[gpu] = chrono::system_clock::duration::zero();
 		int& itr_th = itr[gpu];
@@ -116,12 +117,16 @@ int main(int argc, char *argv[])
 
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		th[gpu].join();
+	}
+	auto elapsed_time_total = chrono::system_clock::now() - start_toal;
 
+	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		cout << "gpu:" << gpu << endl;
 		cout << itr[gpu] << " iterations" << endl;
 		auto msec = chrono::duration_cast<std::chrono::milliseconds>(elapsed_time[gpu]).count();
 		cout << msec << " [ms]" << endl;
 	}
+	cout << "total time = " << chrono::duration_cast<std::chrono::milliseconds>(elapsed_time_total).count() << " [ms]" << endl;
 
 	return 0;
 }
