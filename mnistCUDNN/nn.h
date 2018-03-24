@@ -5,7 +5,7 @@
 const int IMAGE_H = 28;
 const int IMAGE_W = 28;
 
-const int batch_size = 2;
+const int batch_size = 100;
 
 
 class NN {
@@ -18,7 +18,7 @@ public:
 
 	void load_model(const char* filename);
 
-	void foward(x_t x, y_t y);
+	void foward(float* x, float* y);
 
 private:
 	static CudnnHandle cudnnHandle;

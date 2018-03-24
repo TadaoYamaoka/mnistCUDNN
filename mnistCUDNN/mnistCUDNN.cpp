@@ -3,9 +3,12 @@
 #include <vector>
 #include <array>
 #include <chrono>
+#include <thread>
 using namespace std;
 
 #include "nn.h"
+
+const int gpu_num = 1;
 
 static void  showDevices(void)
 {
@@ -43,7 +46,7 @@ ifstream& operator >> (ifstream& is, msb_unsigned_int_t& d) {
 
 int main()
 {
-	//showDevices();
+	showDevices();
 
 	// read mnist data
 	ifstream ifs("data/t10k-images.idx3-ubyte", ios::in | ios::binary);
@@ -69,46 +72,54 @@ int main()
 
 	nn.load_model("../chainer/model");
 
-	NN::x_t x;
-	NN::y_t y;
+	// read all test images
+	float *images = new float[IMAGE_H * IMAGE_W * numberOfImages.val];
+	for (int i = 0; i < numberOfImages.val; i++) {
+		for (int h = 0; h < IMAGE_H; h++) {
+			for (int w = 0; w < IMAGE_W; w++) {
+				// pixel(unsigned byte)
+				unsigned char pixel;
+				ifs.read((char*)&pixel, 1);
 
-	auto start0 = chrono::system_clock::now();
-	auto elapsed_time = start0 - start0;
-	int itr;
-	//const int itr_num = numberOfImages.val / batch_size;
-	const int itr_num = 1;
-	for (itr = 0; itr < itr_num; itr++)
-	{
-		// make minibatch
-		for (int i = 0; i < batch_size; i++) {
-			for (int h = 0; h < IMAGE_H; h++) {
-				for (int w = 0; w < IMAGE_W; w++) {
-					// pixel(unsigned byte)
-					unsigned char pixel;
-					ifs.read((char*)&pixel, 1);
-
-					x[i][0][h][w] = float(pixel) / 255.0f;
-				}
+				images[i * h * w] = float(pixel) / 255.0f;
 			}
-		}
-
-		auto start = chrono::system_clock::now();
-		nn.foward(x, y);
-		elapsed_time += chrono::system_clock::now() - start;
-
-		for (int i = 0; i < batch_size; i++) {
-			for (int c = 0; c < 10; c++) {
-				if (c > 0)
-					cout << "\t";
-				cout << y[i][c];
-			}
-			cout << endl;
 		}
 	}
-	cout << itr << " iterations" << endl;
 
-	auto msec = chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
-	cout << msec << " [ms]" << endl;
+	thread th[gpu_num];
+	int itr[gpu_num];
+	chrono::system_clock::duration elapsed_time[gpu_num];
+
+	for (int gpu = 0; gpu < gpu_num; gpu++) {
+		elapsed_time[gpu] = chrono::system_clock::duration::zero();
+		int& itr_th = itr[gpu];
+		auto& elapsed_time_th = elapsed_time[gpu];
+
+		th[gpu] = thread([&itr_th, &elapsed_time_th, images, gpu, &nn, numberOfImages] {
+			NN::y_t y;
+
+			checkCudaErrors(cudaSetDevice(gpu));
+
+			const int itr_num = numberOfImages.val / batch_size / gpu_num;
+			for (itr_th = 0; itr_th < itr_num; itr_th++)
+			{
+				float* x = images + (IMAGE_H * IMAGE_W) * itr_th;
+
+				auto start = chrono::system_clock::now();
+				nn.foward(x, (float*)y);
+				elapsed_time_th += chrono::system_clock::now() - start;
+			}
+		});
+	}
+
+	for (int gpu = 0; gpu < gpu_num; gpu++) {
+		th[gpu].join();
+
+		cout << "gpu:" << gpu << endl;
+		cout << itr[gpu] << " iterations" << endl;
+		auto msec = chrono::duration_cast<std::chrono::milliseconds>(elapsed_time[gpu]).count();
+		cout << msec << " [ms]" << endl;
+	}
 
 	return 0;
 }
