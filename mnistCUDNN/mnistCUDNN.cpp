@@ -116,13 +116,15 @@ int main(int argc, char *argv[])
 			start_time_th = chrono::system_clock::now();
 
 			const int itr_num = numberOfImages.val / batch_size / gpu_num;
-			for (itr_th = 0; itr_th < itr_num; itr_th++)
-			{
-				float* x = images + (IMAGE_H * IMAGE_W) * itr_th * (gpu + 1);
+			for (int epoch = 0; epoch < 100; epoch++) {
+				for (itr_th = 0; itr_th < itr_num; itr_th++)
+				{
+					float* x = images + (IMAGE_H * IMAGE_W) * itr_th * (gpu + 1);
 
-				auto start = chrono::system_clock::now();
-				nn.foward(x, (float*)y);
-				elapsed_time_th += chrono::system_clock::now() - start;
+					auto start = chrono::system_clock::now();
+					nn.foward(x, (float*)y);
+					elapsed_time_th += chrono::system_clock::now() - start;
+				}
 			}
 
 			end_time_th = chrono::system_clock::now();
