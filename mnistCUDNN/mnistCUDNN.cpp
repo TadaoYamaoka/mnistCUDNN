@@ -1,14 +1,13 @@
 ﻿#include <iostream>
 #include <fstream>
 #include <vector>
-#include <array>
 #include <chrono>
 #include <thread>
 using namespace std;
 
 #include "nn.h"
 
-const int gpu_num = 1;
+int gpu_num = 1;
 
 static void  showDevices(void)
 {
@@ -44,8 +43,12 @@ ifstream& operator >> (ifstream& is, msb_unsigned_int_t& d) {
 	return is;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
+	if (argc > 1) {
+		gpu_num = atoi(argv[1]);
+	}
+
 	showDevices();
 
 	// read mnist data
@@ -86,9 +89,9 @@ int main()
 		}
 	}
 
-	thread th[gpu_num];
-	int itr[gpu_num];
-	chrono::system_clock::duration elapsed_time[gpu_num];
+	vector<thread> th(gpu_num);
+	vector<int> itr(gpu_num);
+	vector<chrono::system_clock::duration> elapsed_time(gpu_num);
 
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		elapsed_time[gpu] = chrono::system_clock::duration::zero();
