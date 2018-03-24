@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 			for (int epoch = 0; epoch < 100; epoch++) {
 				for (itr_th = 0; itr_th < itr_num; itr_th++)
 				{
-					float* x = images + (IMAGE_H * IMAGE_W) * itr_th * (gpu + 1);
+					float* x = images + (IMAGE_H * IMAGE_W) * (itr_th + itr_num * gpu);
 
 					auto start = chrono::system_clock::now();
 					nn.foward(x, (float*)y);
