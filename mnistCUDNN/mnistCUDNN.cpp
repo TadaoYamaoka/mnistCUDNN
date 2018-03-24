@@ -3,6 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
+#include <condition_variable>
 using namespace std;
 
 #include "nn.h"
@@ -88,20 +89,25 @@ int main(int argc, char *argv[])
 	vector<thread> th(gpu_num);
 	vector<int> itr(gpu_num);
 	vector<chrono::system_clock::duration> elapsed_time(gpu_num);
+	condition_variable cond;
+	mutex mtx;
+	bool ready = false;
 
-	auto start_toal = chrono::system_clock::now();
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		elapsed_time[gpu] = chrono::system_clock::duration::zero();
 		int& itr_th = itr[gpu];
 		auto& elapsed_time_th = elapsed_time[gpu];
 
-		th[gpu] = thread([&itr_th, &elapsed_time_th, images, gpu, numberOfImages] {
+		th[gpu] = thread([&itr_th, &elapsed_time_th, images, gpu, numberOfImages, &cond, &mtx, &ready] {
 			checkCudaErrors(cudaSetDevice(gpu));
 
 			NN nn;
 			nn.load_model("../chainer/model");
 
 			NN::y_t y;
+
+			unique_lock<mutex> lk(mtx);
+			cond.wait(lk, [&ready] { return ready; });
 
 			const int itr_num = numberOfImages.val / batch_size / gpu_num;
 			for (itr_th = 0; itr_th < itr_num; itr_th++)
@@ -115,10 +121,18 @@ int main(int argc, char *argv[])
 		});
 	}
 
+	// start measurement
+	{
+		lock_guard<mutex> lk(mtx);
+		ready = true;
+	}
+	auto start_total = chrono::system_clock::now();
+	cond.notify_all();
+
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		th[gpu].join();
 	}
-	auto elapsed_time_total = chrono::system_clock::now() - start_toal;
+	auto elapsed_time_total = chrono::system_clock::now() - start_total;
 
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		cout << "gpu:" << gpu << endl;
