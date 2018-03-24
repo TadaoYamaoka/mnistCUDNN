@@ -24,4 +24,5 @@ class NN(Chain):
         h = self.bn2(h)
         h = F.max_pooling_2d(F.relu(h), 2)
         h = F.relu(self.l3(h))
+        h = F.dropout(h, ratio=0.4)
         return self.l4(h)
