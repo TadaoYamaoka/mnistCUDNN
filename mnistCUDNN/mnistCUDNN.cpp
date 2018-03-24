@@ -69,15 +69,17 @@ int main()
 
 	nn.load_model("../chainer/model");
 
+	NN::x_t x;
 	NN::y_t y;
 
 	auto start0 = chrono::system_clock::now();
 	auto elapsed_time = start0 - start0;
 	int itr;
-	for (itr = 0; itr < numberOfImages.val / batch_size; itr++)
+	//const int itr_num = numberOfImages.val / batch_size;
+	const int itr_num = 1;
+	for (itr = 0; itr < itr_num; itr++)
 	{
 		// make minibatch
-		NN::x_t x;
 		for (int i = 0; i < batch_size; i++) {
 			for (int h = 0; h < IMAGE_H; h++) {
 				for (int w = 0; w < IMAGE_W; w++) {
@@ -94,14 +96,14 @@ int main()
 		nn.foward(x, y);
 		elapsed_time += chrono::system_clock::now() - start;
 
-		/*for (int i = 0; i < batch_size; i++) {
+		for (int i = 0; i < batch_size; i++) {
 			for (int c = 0; c < 10; c++) {
 				if (c > 0)
 					cout << "\t";
 				cout << y[i][c];
 			}
 			cout << endl;
-		}*/
+		}
 	}
 	cout << itr << " iterations" << endl;
 

@@ -8,7 +8,7 @@ import time
 from nn import NN
 
 parser = argparse.ArgumentParser(description='example: MNIST')
-parser.add_argument('--batchsize', '-b', type=int, default=100,
+parser.add_argument('--batchsize', '-b', type=int, default=2,
                     help='Number of images in each mini-batch')
 parser.add_argument('--gpu', '-g', type=int, default=-1,
                     help='GPU ID (negative value indicates CPU)')
@@ -34,7 +34,8 @@ test_iter = iterators.SerialIterator(test, args.batchsize, shuffle=False)
 
 itr = 0
 elapsed_time = 0
-for i in range(0, len(test), args.batchsize):
+#for i in range(0, len(test), args.batchsize):
+for i in range(0, args.batchsize, args.batchsize):
     # ミニバッチデータ
     test_batch = test_iter.next()
     with chainer.no_backprop_mode():
@@ -46,7 +47,7 @@ for i in range(0, len(test), args.batchsize):
             y_test = model(x_test)
             elapsed_time += time.time() - start
 
-            #print(y_test.data)
+            print(y_test.data)
 
             itr += 1
 

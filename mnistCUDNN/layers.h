@@ -5,6 +5,15 @@
 template<const int k, const int c, const int fsize, const int pad, const int stride = 1>
 class ConvLayer {
 public:
+	ConvLayer() : W(nullptr), workSpace(nullptr) {
+		const size_t size = c * k * fsize * fsize;
+		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(float)));
+	}
+	~ConvLayer() {
+		checkCudaErrors(cudaFree(W));
+		checkCudaErrors(cudaFree(workSpace));
+	}
+
 	void init(cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, cudnnTensorDescriptor_t yDesc) {
 		checkCUDNN(cudnnSetFilter4dDescriptor(wDesc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, k, c, fsize, fsize));
 		checkCUDNN(cudnnSetConvolution2dDescriptor(convDesc, pad, pad, stride, stride, 1, 1, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));
@@ -38,8 +47,7 @@ public:
 	}
 
 	void set_param(float* data) {
-		const size_t size = k * k * fsize * fsize;
-		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(float)));
+		const size_t size = c * k * fsize * fsize;
 		checkCudaErrors(cudaMemcpy(W, data, size * sizeof(float), cudaMemcpyHostToDevice));
 	}
 
@@ -61,13 +69,17 @@ private:
 template<const int c, const int h, const int w>
 class Bias {
 public:
-	Bias() {
+	Bias() : b(nullptr) {
 		checkCUDNN(cudnnSetTensor4dDescriptor(biasTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, c, h, w));
+		const size_t size = c * h * w;
+		checkCudaErrors(cudaMalloc((void**)&b, size * sizeof(float)));
+	}
+	~Bias() {
+		checkCudaErrors(cudaFree(b));
 	}
 
 	void set_bias(float* data) {
 		const size_t size = c * h * w;
-		checkCudaErrors(cudaMalloc((void**)&b, size * sizeof(float)));
 		checkCudaErrors(cudaMemcpy(b, data, size * sizeof(float), cudaMemcpyHostToDevice));
 	}
 
@@ -101,6 +113,14 @@ private:
 template<const int k, const int n>
 class Linear {
 public:
+	Linear() : W(nullptr) {
+		const size_t size = k * n;
+		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(float)));
+	}
+	~Linear() {
+		checkCudaErrors(cudaFree(W));
+	}
+
 	void get_xdesc(cudnnTensorDescriptor_t xDesc, const int m) {
 		checkCUDNN(cudnnSetTensor4dDescriptor(xDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, m, k, 1, 1));
 	}
@@ -111,7 +131,6 @@ public:
 
 	void set_param(float* data) {
 		const size_t size = k * n;
-		checkCudaErrors(cudaMalloc((void**)&W, size * sizeof(float)));
 		checkCudaErrors(cudaMemcpy(W, data, size * sizeof(float), cudaMemcpyHostToDevice));
 	}
 
@@ -167,4 +186,45 @@ public:
 		const float beta = 0.0f;
 		checkCUDNN(cudnnSoftmaxForward(handle, CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_CHANNEL, &alpha, xDesc, x, &beta, xDesc, x));
 	}
+};
+
+template<const int k>
+class BatchNormalization {
+public:
+	BatchNormalization() : bnScale(nullptr), bnBias(nullptr), estimatedMean(nullptr), estimatedVariance(nullptr) {
+		const size_t size = k;
+		checkCudaErrors(cudaMalloc((void**)&bnScale, size * sizeof(float)));
+		checkCudaErrors(cudaMalloc((void**)&bnBias, size * sizeof(float)));
+		checkCudaErrors(cudaMalloc((void**)&estimatedMean, size * sizeof(float)));
+		checkCudaErrors(cudaMalloc((void**)&estimatedVariance, size * sizeof(float)));
+	}
+	~BatchNormalization() {
+		checkCudaErrors(cudaFree(bnScale));
+		checkCudaErrors(cudaFree(bnBias));
+		checkCudaErrors(cudaFree(estimatedMean));
+		checkCudaErrors(cudaFree(estimatedVariance));
+	}
+
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x, float* y) {
+		const float alpha = 1.0f;
+		const float beta = 0.0f;
+		const double eps = 2e-5;
+		checkCUDNN(cudnnDeriveBNTensorDescriptor(bnScaleBiasMeanVarDesc, xDesc, CUDNN_BATCHNORM_SPATIAL));
+		checkCUDNN(cudnnBatchNormalizationForwardInference(handle, CUDNN_BATCHNORM_SPATIAL, &alpha, &beta, xDesc, x, xDesc, y, bnScaleBiasMeanVarDesc, bnScale, bnBias, estimatedMean, estimatedVariance, eps));
+	}
+
+	void set_param(float* bnScale, float *bnBias, float *estimatedMean, float *estimatedVariance) {
+		const size_t size = k;
+		checkCudaErrors(cudaMemcpy(this->bnScale, bnScale, size * sizeof(float), cudaMemcpyHostToDevice));
+		checkCudaErrors(cudaMemcpy(this->bnBias, bnBias, size * sizeof(float), cudaMemcpyHostToDevice));
+		checkCudaErrors(cudaMemcpy(this->estimatedMean, estimatedMean, size * sizeof(float), cudaMemcpyHostToDevice));
+		checkCudaErrors(cudaMemcpy(this->estimatedVariance, estimatedVariance, size * sizeof(float), cudaMemcpyHostToDevice));
+	}
+
+private:
+	CudnnTensorDescriptor bnScaleBiasMeanVarDesc;
+	float *bnScale;
+	float *bnBias;
+	float *estimatedMean;
+	float *estimatedVariance;
 };

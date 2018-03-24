@@ -34,8 +34,10 @@ NN::NN()
 	// malloc
 	checkCudaErrors(cudaMalloc((void**)&x_dev, conv1.get_xsize(batch_size, IMAGE_H, IMAGE_W)));
 	checkCudaErrors(cudaMalloc((void**)&h1_dev, conv1.get_ysize(batch_size, h1_h, h1_w)));
+	checkCudaErrors(cudaMalloc((void**)&h1_bn_dev, conv1.get_ysize(batch_size, h1_h, h1_w)));
 	checkCudaErrors(cudaMalloc((void**)&h2_dev, conv2.get_xsize(batch_size, h2_h, h2_w)));
 	checkCudaErrors(cudaMalloc((void**)&h3_dev, conv2.get_ysize(batch_size, h3_h, h3_w)));
+	checkCudaErrors(cudaMalloc((void**)&h3_bn_dev, conv2.get_ysize(batch_size, h3_h, h3_w)));
 	checkCudaErrors(cudaMalloc((void**)&h4_dev, batch_size * k * h4_h * h4_w * sizeof(float)));
 	checkCudaErrors(cudaMalloc((void**)&h5_dev, batch_size * fcl * sizeof(float)));
 	checkCudaErrors(cudaMalloc((void**)&y_dev, batch_size * 10 * sizeof(float)));
@@ -44,8 +46,10 @@ NN::NN()
 NN::~NN() {
 	checkCudaErrors(cudaFree(x_dev));
 	checkCudaErrors(cudaFree(h1_dev));
+	checkCudaErrors(cudaFree(h1_bn_dev));
 	checkCudaErrors(cudaFree(h2_dev));
 	checkCudaErrors(cudaFree(h3_dev));
+	checkCudaErrors(cudaFree(h3_bn_dev));
 	checkCudaErrors(cudaFree(h4_dev));
 	checkCudaErrors(cudaFree(h5_dev));
 	checkCudaErrors(cudaFree(y_dev));
@@ -65,6 +69,8 @@ void NN::load_model(const char* filepath)
 	bias3.set_bias(params["l3/b.npy"].data);
 	l4.set_param(params["l4/W.npy"].data);
 	bias4.set_bias(params["l4/b.npy"].data);
+	bn1.set_param(params["bn1/gamma.npy"].data, params["bn1/beta.npy"].data, params["bn1/avg_mean.npy"].data, params["bn1/avg_var.npy"].data);
+	bn2.set_param(params["bn2/gamma.npy"].data, params["bn2/beta.npy"].data, params["bn2/avg_mean.npy"].data, params["bn2/avg_var.npy"].data);
 }
 
 void NN::foward(x_t x, y_t y)
@@ -75,14 +81,16 @@ void NN::foward(x_t x, y_t y)
 	// conv1
 	conv1(cudnnHandle, xDesc, x_dev, h1Desc, h1_dev);
 	bias1(cudnnHandle, h1Desc, h1_dev);
-	relu(cudnnHandle, h1Desc, h1_dev);
-	max_pooling_2d(cudnnHandle, h1Desc, h1_dev, h2Desc, h2_dev);
+	bn1(cudnnHandle, h1Desc, h1_dev, h1_bn_dev);
+	relu(cudnnHandle, h1Desc, h1_bn_dev);
+	max_pooling_2d(cudnnHandle, h1Desc, h1_bn_dev, h2Desc, h2_dev);
 
 	// conv2
 	conv2(cudnnHandle, h2Desc, h2_dev, h3Desc, h3_dev);
 	bias2(cudnnHandle, h3Desc, h3_dev);
-	relu(cudnnHandle, h3Desc, h3_dev);
-	max_pooling_2d(cudnnHandle, h3Desc, h3_dev, h4Desc, h4_dev);
+	bn2(cudnnHandle, h3Desc, h3_dev, h3_bn_dev);
+	relu(cudnnHandle, h3Desc, h3_bn_dev);
+	max_pooling_2d(cudnnHandle, h3Desc, h3_bn_dev, h4Desc, h4_dev);
 
 	// fcl
 	l3(cublasHandle, batch_size, h4_dev, h5_dev);

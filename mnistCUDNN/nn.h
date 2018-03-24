@@ -5,7 +5,7 @@
 const int IMAGE_H = 28;
 const int IMAGE_W = 28;
 
-const int batch_size = 100;
+const int batch_size = 2;
 
 
 class NN {
@@ -34,6 +34,8 @@ private:
 	Bias<fcl, 1, 1> bias3;
 	Linear<fcl, 10> l4;
 	Bias<10, 1, 1> bias4;
+	BatchNormalization<k> bn1;
+	BatchNormalization<k> bn2;
 
 	ReLU relu;
 	MaxPooling2D<2> max_pooling_2d;
@@ -48,8 +50,10 @@ private:
 
 	float* x_dev;
 	float* h1_dev;
+	float* h1_bn_dev;
 	float* h2_dev;
 	float* h3_dev;
+	float* h3_bn_dev;
 	float* h4_dev;
 	float* h5_dev;
 	float* y_dev;
