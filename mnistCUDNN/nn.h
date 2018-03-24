@@ -5,7 +5,7 @@
 const int IMAGE_H = 28;
 const int IMAGE_W = 28;
 
-const int batch_size = 2;
+const int batch_size = 100;
 
 
 class NN {

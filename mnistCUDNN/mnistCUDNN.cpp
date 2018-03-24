@@ -2,6 +2,7 @@
 #include <fstream>
 #include <vector>
 #include <array>
+#include <chrono>
 using namespace std;
 
 #include "nn.h"
@@ -64,35 +65,48 @@ int main()
 	msb_unsigned_int_t columns;
 	ifs >> columns;
 
-	// make minibatch
-	NN::x_t x;
-	for (int i = 0; i < batch_size; i++) {
-		for (int h = 0; h < IMAGE_H; h++) {
-			for (int w = 0; w < IMAGE_W; w++) {
-				// pixel(unsigned byte)
-				unsigned char pixel;
-				ifs.read((char*)&pixel, 1);
-
-				x[i][0][h][w] = float(pixel) / 255.0f;
-			}
-		}
-	}
-
 	NN nn;
 
 	nn.load_model("../chainer/model");
 
 	NN::y_t y;
-	nn.foward(x, y);
 
-	for (int i = 0; i < batch_size; i++) {
-		for (int c = 0; c < 10; c++) {
-			if (c > 0)
-				cout << "\t";
-			cout << y[i][c];
+	auto start0 = chrono::system_clock::now();
+	auto elapsed_time = start0 - start0;
+	int itr;
+	for (itr = 0; itr < numberOfImages.val / batch_size; itr++)
+	{
+		// make minibatch
+		NN::x_t x;
+		for (int i = 0; i < batch_size; i++) {
+			for (int h = 0; h < IMAGE_H; h++) {
+				for (int w = 0; w < IMAGE_W; w++) {
+					// pixel(unsigned byte)
+					unsigned char pixel;
+					ifs.read((char*)&pixel, 1);
+
+					x[i][0][h][w] = float(pixel) / 255.0f;
+				}
+			}
 		}
-		cout << endl;
+
+		auto start = chrono::system_clock::now();
+		nn.foward(x, y);
+		elapsed_time += chrono::system_clock::now() - start;
+
+		/*for (int i = 0; i < batch_size; i++) {
+			for (int c = 0; c < 10; c++) {
+				if (c > 0)
+					cout << "\t";
+				cout << y[i][c];
+			}
+			cout << endl;
+		}*/
 	}
+	cout << itr << " iterations" << endl;
+
+	auto msec = chrono::duration_cast<std::chrono::milliseconds>(elapsed_time).count();
+	cout << msec << " [ms]" << endl;
 
 	return 0;
 }
