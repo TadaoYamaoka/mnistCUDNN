@@ -3,7 +3,7 @@
 #include <vector>
 #include <chrono>
 #include <thread>
-#include <condition_variable>
+#include <atomic>
 #include <algorithm>
 using namespace std;
 
@@ -92,9 +92,7 @@ int main(int argc, char *argv[])
 	vector<chrono::system_clock::duration> elapsed_time(gpu_num);
 	vector<chrono::system_clock::time_point> start_time(gpu_num);
 	vector<chrono::system_clock::time_point> end_time(gpu_num);
-	condition_variable cond;
-	mutex mtx;
-	bool ready = false;
+	atomic<bool> ready = false;
 
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		elapsed_time[gpu] = chrono::system_clock::duration::zero();
@@ -103,7 +101,7 @@ int main(int argc, char *argv[])
 		auto& start_time_th = start_time[gpu];
 		auto& end_time_th = end_time[gpu];
 
-		th[gpu] = thread([&itr_th, &elapsed_time_th, &start_time_th, &end_time_th, images, gpu, numberOfImages, &cond, &mtx, &ready] {
+		th[gpu] = thread([&itr_th, &elapsed_time_th, &start_time_th, &end_time_th, images, gpu, numberOfImages, &ready] {
 			checkCudaErrors(cudaSetDevice(gpu));
 
 			NN nn;
@@ -111,12 +109,12 @@ int main(int argc, char *argv[])
 
 			NN::y_t y;
 
-			unique_lock<mutex> lk(mtx);
-			cond.wait(lk, [&ready] { return ready; });
+			while (!ready)
+				this_thread::yield();
 			start_time_th = chrono::system_clock::now();
 
 			const int itr_num = numberOfImages.val / batch_size / gpu_num;
-			for (int epoch = 0; epoch < 100; epoch++) {
+			for (int epoch = 0; epoch < 20; epoch++) {
 				for (itr_th = 0; itr_th < itr_num; itr_th++)
 				{
 					float* x = images + (IMAGE_H * IMAGE_W) * (itr_th + itr_num * gpu);
@@ -132,11 +130,8 @@ int main(int argc, char *argv[])
 	}
 
 	// start measurement
-	{
-		lock_guard<mutex> lk(mtx);
-		ready = true;
-	}
-	cond.notify_all();
+	this_thread::sleep_for(chrono::milliseconds(100));
+	ready = true;
 
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		th[gpu].join();
