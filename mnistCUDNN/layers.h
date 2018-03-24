@@ -228,3 +228,12 @@ private:
 	float *estimatedMean;
 	float *estimatedVariance;
 };
+
+class Add {
+public:
+	void operator() (cudnnHandle_t handle, cudnnTensorDescriptor_t xDesc, float* x, float* y) {
+		const float alpha = 1.0f;
+		const float beta = 1.0f;
+		checkCUDNN(cudnnAddTensor(handle, &alpha, xDesc, x, &beta, xDesc, y));
+	}
+};
