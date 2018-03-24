@@ -4,6 +4,7 @@
 #include <chrono>
 #include <thread>
 #include <condition_variable>
+#include <algorithm>
 using namespace std;
 
 #include "nn.h"
@@ -89,6 +90,7 @@ int main(int argc, char *argv[])
 	vector<thread> th(gpu_num);
 	vector<int> itr(gpu_num);
 	vector<chrono::system_clock::duration> elapsed_time(gpu_num);
+	vector<chrono::system_clock::time_point> start_time(gpu_num);
 	vector<chrono::system_clock::time_point> end_time(gpu_num);
 	condition_variable cond;
 	mutex mtx;
@@ -98,9 +100,10 @@ int main(int argc, char *argv[])
 		elapsed_time[gpu] = chrono::system_clock::duration::zero();
 		int& itr_th = itr[gpu];
 		auto& elapsed_time_th = elapsed_time[gpu];
+		auto& start_time_th = start_time[gpu];
 		auto& end_time_th = end_time[gpu];
 
-		th[gpu] = thread([&itr_th, &elapsed_time_th, &end_time_th, images, gpu, numberOfImages, &cond, &mtx, &ready] {
+		th[gpu] = thread([&itr_th, &elapsed_time_th, &start_time_th, &end_time_th, images, gpu, numberOfImages, &cond, &mtx, &ready] {
 			checkCudaErrors(cudaSetDevice(gpu));
 
 			NN nn;
@@ -110,6 +113,7 @@ int main(int argc, char *argv[])
 
 			unique_lock<mutex> lk(mtx);
 			cond.wait(lk, [&ready] { return ready; });
+			start_time_th = chrono::system_clock::now();
 
 			const int itr_num = numberOfImages.val / batch_size / gpu_num;
 			for (itr_th = 0; itr_th < itr_num; itr_th++)
@@ -130,7 +134,6 @@ int main(int argc, char *argv[])
 		lock_guard<mutex> lk(mtx);
 		ready = true;
 	}
-	auto start_total = chrono::system_clock::now();
 	cond.notify_all();
 
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
@@ -143,7 +146,9 @@ int main(int argc, char *argv[])
 		auto msec = chrono::duration_cast<std::chrono::milliseconds>(elapsed_time[gpu]).count();
 		cout << msec << " [ms]" << endl;
 	}
-	chrono::system_clock::duration elapsed_time_total = ((end_time[0] > end_time[1]) ? end_time[0] : end_time[1]) - start_total;
+	auto start_total = *min_element(start_time.begin(), start_time.end());
+	auto end_total = *max_element(end_time.begin(), end_time.end());
+	auto elapsed_time_total = end_total - start_total;
 	cout << "total time = " << chrono::duration_cast<std::chrono::milliseconds>(elapsed_time_total).count() << " [ms]" << endl;
 
 	return 0;
