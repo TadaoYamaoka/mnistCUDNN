@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
 	vector<thread> th(gpu_num);
 	vector<int> itr(gpu_num);
 	vector<chrono::system_clock::duration> elapsed_time(gpu_num);
+	vector<chrono::system_clock::time_point> end_time(gpu_num);
 	condition_variable cond;
 	mutex mtx;
 	bool ready = false;
@@ -97,8 +98,9 @@ int main(int argc, char *argv[])
 		elapsed_time[gpu] = chrono::system_clock::duration::zero();
 		int& itr_th = itr[gpu];
 		auto& elapsed_time_th = elapsed_time[gpu];
+		auto& end_time_th = end_time[gpu];
 
-		th[gpu] = thread([&itr_th, &elapsed_time_th, images, gpu, numberOfImages, &cond, &mtx, &ready] {
+		th[gpu] = thread([&itr_th, &elapsed_time_th, &end_time_th, images, gpu, numberOfImages, &cond, &mtx, &ready] {
 			checkCudaErrors(cudaSetDevice(gpu));
 
 			NN nn;
@@ -118,6 +120,8 @@ int main(int argc, char *argv[])
 				nn.foward(x, (float*)y);
 				elapsed_time_th += chrono::system_clock::now() - start;
 			}
+
+			end_time_th = chrono::system_clock::now();
 		});
 	}
 
@@ -132,7 +136,6 @@ int main(int argc, char *argv[])
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		th[gpu].join();
 	}
-	auto elapsed_time_total = chrono::system_clock::now() - start_total;
 
 	for (int gpu = 0; gpu < gpu_num; gpu++) {
 		cout << "gpu:" << gpu << endl;
@@ -140,6 +143,7 @@ int main(int argc, char *argv[])
 		auto msec = chrono::duration_cast<std::chrono::milliseconds>(elapsed_time[gpu]).count();
 		cout << msec << " [ms]" << endl;
 	}
+	chrono::system_clock::duration elapsed_time_total = ((end_time[0] > end_time[1]) ? end_time[0] : end_time[1]) - start_total;
 	cout << "total time = " << chrono::duration_cast<std::chrono::milliseconds>(elapsed_time_total).count() << " [ms]" << endl;
 
 	return 0;
