@@ -1,7 +1,7 @@
 #include "nn.h"
 #include "npz.h"
 
-NN::NN() : cudnnHandle(new CudnnHandle()), cublasHandle(new CublasHandle())
+NN::NN()
 {
 	conv1.get_xdesc(xDesc, batch_size, IMAGE_H, IMAGE_W);
 
@@ -25,9 +25,9 @@ NN::NN() : cudnnHandle(new CudnnHandle()), cublasHandle(new CublasHandle())
 	l5.get_ydesc(yDesc, batch_size);
 
 	// init conv layers
-	conv1.init(*cudnnHandle, xDesc, h1Desc);
-	conv2.init(*cudnnHandle, h1Desc, h1Desc);
-	conv3.init(*cudnnHandle, h3Desc, h4Desc);
+	conv1.init(cudnnHandle, xDesc, h1Desc);
+	conv2.init(cudnnHandle, h1Desc, h1Desc);
+	conv3.init(cudnnHandle, h3Desc, h4Desc);
 
 	// malloc
 	checkCudaErrors(cudaMalloc((void**)&x_dev, conv1.get_xsize(batch_size, IMAGE_H, IMAGE_W)));
@@ -81,32 +81,32 @@ void NN::foward(float* x, float* y)
 	checkCudaErrors(cudaMemcpy(x_dev, x, sizeof(x_t), cudaMemcpyHostToDevice));
 
 	// conv1
-	conv1(*cudnnHandle, xDesc, x_dev, h1Desc, h1_dev);
-	bias1(*cudnnHandle, h1Desc, h1_dev);
-	bn1(*cudnnHandle, h1Desc, h1_dev, h1_bn_dev);
-	relu(*cudnnHandle, h1Desc, h1_bn_dev);
+	conv1(cudnnHandle, xDesc, x_dev, h1Desc, h1_dev);
+	bias1(cudnnHandle, h1Desc, h1_dev);
+	bn1(cudnnHandle, h1Desc, h1_dev, h1_bn_dev);
+	relu(cudnnHandle, h1Desc, h1_bn_dev);
 
 	// resnet block
-	conv2(*cudnnHandle, h1Desc, h1_bn_dev, h1Desc, h2_dev);
-	bias2(*cudnnHandle, h1Desc, h2_dev);
-	bn2(*cudnnHandle, h1Desc, h2_dev, h2_bn_dev);
+	conv2(cudnnHandle, h1Desc, h1_bn_dev, h1Desc, h2_dev);
+	bias2(cudnnHandle, h1Desc, h2_dev);
+	bn2(cudnnHandle, h1Desc, h2_dev, h2_bn_dev);
 
-	add(*cudnnHandle, h1Desc, h1_bn_dev, h2_bn_dev);
-	relu(*cudnnHandle, h1Desc, h2_bn_dev);
-	max_pooling_2d(*cudnnHandle, h1Desc, h2_bn_dev, h3Desc, h3_dev);
+	add(cudnnHandle, h1Desc, h1_bn_dev, h2_bn_dev);
+	relu(cudnnHandle, h1Desc, h2_bn_dev);
+	max_pooling_2d(cudnnHandle, h1Desc, h2_bn_dev, h3Desc, h3_dev);
 
 	// conv3
-	conv3(*cudnnHandle, h3Desc, h3_dev, h4Desc, h4_dev);
-	bias3(*cudnnHandle, h4Desc, h4_dev);
-	relu(*cudnnHandle, h4Desc, h4_dev);
-	max_pooling_2d(*cudnnHandle, h4Desc, h4_dev, h5Desc, h5_dev);
+	conv3(cudnnHandle, h3Desc, h3_dev, h4Desc, h4_dev);
+	bias3(cudnnHandle, h4Desc, h4_dev);
+	relu(cudnnHandle, h4Desc, h4_dev);
+	max_pooling_2d(cudnnHandle, h4Desc, h4_dev, h5Desc, h5_dev);
 
 	// fcl
-	l4(*cublasHandle, batch_size, h5_dev, h6_dev);
-	bias4(*cudnnHandle, h6Desc, h6_dev);
-	relu(*cudnnHandle, h6Desc, h6_dev);
-	l5(*cublasHandle, batch_size, h6_dev, y_dev);
-	bias5(*cudnnHandle, yDesc, y_dev);
+	l4(cublasHandle, batch_size, h5_dev, h6_dev);
+	bias4(cudnnHandle, h6Desc, h6_dev);
+	relu(cudnnHandle, h6Desc, h6_dev);
+	l5(cublasHandle, batch_size, h6_dev, y_dev);
+	bias5(cudnnHandle, yDesc, y_dev);
 
 	// output
 	checkCudaErrors(cudaMemcpy(y, y_dev, sizeof(y_t), cudaMemcpyDeviceToHost));

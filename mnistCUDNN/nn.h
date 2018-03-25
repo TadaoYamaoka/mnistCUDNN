@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include "layers.h"
 
 const int IMAGE_H = 28;
@@ -22,8 +21,8 @@ public:
 	void foward(float* x, float* y);
 
 private:
-	std::unique_ptr<CudnnHandle> cudnnHandle;
-	std::unique_ptr<CublasHandle> cublasHandle;
+	CudnnHandle cudnnHandle;
+	CublasHandle cublasHandle;
 	static const int k = 16;
 	static const int fcl = 256;
 

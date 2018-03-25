@@ -10,6 +10,8 @@ from nn import NN
 parser = argparse.ArgumentParser(description='example: MNIST')
 parser.add_argument('--batchsize', '-b', type=int, default=100,
                     help='Number of images in each mini-batch')
+parser.add_argument('--epoch', '-e', type=int, default=20,
+                    help='Number of sweeps over the dataset to train')
 parser.add_argument('--gpu', '-g', type=int, default=-1,
                     help='GPU ID (negative value indicates CPU)')
 parser.add_argument('--initmodel', '-m', default='model',
@@ -34,22 +36,23 @@ test_iter = iterators.SerialIterator(test, args.batchsize, shuffle=False)
 
 itr = 0
 elapsed_time = 0
-for i in range(0, len(test), args.batchsize):
-#for i in range(0, args.batchsize, args.batchsize):
-    # ミニバッチデータ
-    test_batch = test_iter.next()
-    with chainer.no_backprop_mode():
-        with chainer.using_config('train', False):
-            x_test, t_test = chainer.dataset.concat_examples(test_batch, args.gpu)
+for epoch in range(1, args.epoch + 1):
+    for i in range(0, len(test), args.batchsize):
+    #for i in range(0, args.batchsize, args.batchsize):
+        # ミニバッチデータ
+        test_batch = test_iter.next()
+        with chainer.no_backprop_mode():
+            with chainer.using_config('train', False):
+                x_test, t_test = chainer.dataset.concat_examples(test_batch, args.gpu)
 
-            # 順伝播
-            start = time.time()
-            y_test = model(x_test)
-            elapsed_time += time.time() - start
+                # 順伝播
+                start = time.time()
+                y_test = model(x_test)
+                elapsed_time += time.time() - start
 
-            #print(y_test.data)
+                #print(y_test.data)
 
-            itr += 1
+                itr += 1
 
 print("{} iterations".format(itr))
 print("{} [ms]".format(elapsed_time * 1000))
