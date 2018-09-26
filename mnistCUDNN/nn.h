@@ -10,15 +10,15 @@ const int batch_size = 100;
 
 class NN {
 public:
-	typedef float x_t[batch_size][1][IMAGE_H][IMAGE_W];
-	typedef float y_t[batch_size][10];
+	typedef __half x_t[batch_size][1][IMAGE_H][IMAGE_W];
+	typedef __half y_t[batch_size][10];
 
 	NN();
 	~NN();
 
 	void load_model(const char* filename);
 
-	void foward(float* x, float* y);
+	void foward(__half* x, __half* y);
 
 private:
 	CudnnHandle cudnnHandle;
@@ -52,14 +52,14 @@ private:
 	CudnnTensorDescriptor h6Desc;
 	CudnnTensorDescriptor yDesc;
 
-	float* x_dev;
-	float* h1_dev;
-	float* h1_bn_dev;
-	float* h2_dev;
-	float* h2_bn_dev;
-	float* h3_dev;
-	float* h4_dev;
-	float* h5_dev;
-	float* h6_dev;
-	float* y_dev;
+	__half* x_dev;
+	__half* h1_dev;
+	__half* h1_bn_dev;
+	__half* h2_dev;
+	__half* h2_bn_dev;
+	__half* h3_dev;
+	__half* h4_dev;
+	__half* h5_dev;
+	__half* h6_dev;
+	__half* y_dev;
 };

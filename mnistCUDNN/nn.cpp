@@ -75,7 +75,7 @@ void NN::load_model(const char* filepath)
 	bn2.set_param(params["bn2/gamma.npy"].data, params["bn2/beta.npy"].data, params["bn2/avg_mean.npy"].data, params["bn2/avg_var.npy"].data);
 }
 
-void NN::foward(float* x, float* y)
+void NN::foward(__half* x, __half* y)
 {
 	// input
 	checkCudaErrors(cudaMemcpy(x_dev, x, sizeof(x_t), cudaMemcpyHostToDevice));
