@@ -139,7 +139,7 @@ public:
 		const float beta = 0.0f;
 		// C = Éø op ( A ) op ( B ) + É¿ C
 		// op ( A ) m Å~ k , op ( B ) k Å~ n and C m Å~ n
-		checkCublasErrors(cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha, W, k, x, k, &beta, y, n));
+		checkCublasErrors(cublasGemmEx(handle, CUBLAS_OP_T, CUBLAS_OP_N, n, m, k, &alpha, W, CUDA_R_32F, k, x, CUDA_R_32F, k, &beta, y, CUDA_R_32F, n, CUDA_R_32F, CUBLAS_GEMM_DEFAULT_TENSOR_OP));
 	}
 
 private:

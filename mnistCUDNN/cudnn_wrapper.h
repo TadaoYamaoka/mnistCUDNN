@@ -146,6 +146,7 @@ private:
 public:
 	CublasHandle() {
 		checkCublasErrors(cublasCreate(&cublasHandle));
+		checkCublasErrors(cublasSetMathMode(cublasHandle, CUBLAS_TENSOR_OP_MATH));
 	}
 	~CublasHandle() {
 		checkCublasErrors(cublasDestroy(cublasHandle));
