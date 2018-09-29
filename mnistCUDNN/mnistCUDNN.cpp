@@ -9,8 +9,6 @@ using namespace std;
 
 #include "nn.h"
 
-int gpu_num = 1;
-
 static void  showDevices(void)
 {
 	int totalDevices;
@@ -47,8 +45,10 @@ ifstream& operator >> (ifstream& is, msb_unsigned_int_t& d) {
 
 int main(int argc, char *argv[])
 {
+	int gpu_id = 0;
+
 	if (argc > 1) {
-		gpu_num = atoi(argv[1]);
+		gpu_id = atoi(argv[1]);
 	}
 
 	showDevices();
@@ -87,68 +87,32 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	vector<thread> th(gpu_num);
-	vector<int> itr(gpu_num);
-	vector<chrono::system_clock::duration> elapsed_time(gpu_num);
-	vector<chrono::system_clock::time_point> start_time(gpu_num);
-	vector<chrono::system_clock::time_point> end_time(gpu_num);
-	atomic<bool> ready = false;
+	checkCudaErrors(cudaSetDevice(gpu_id));
 
-	for (int gpu = 0; gpu < gpu_num; gpu++) {
-		elapsed_time[gpu] = chrono::system_clock::duration::zero();
-		int& itr_th = itr[gpu];
-		auto& elapsed_time_th = elapsed_time[gpu];
-		auto& start_time_th = start_time[gpu];
-		auto& end_time_th = end_time[gpu];
+	NN nn;
+	nn.load_model("../chainer/model");
 
-		th[gpu] = thread([&itr_th, &elapsed_time_th, &start_time_th, &end_time_th, images, gpu, numberOfImages, &ready] {
-			checkCudaErrors(cudaSetDevice(gpu));
+	NN::y_t y;
 
-			NN nn;
-			nn.load_model("../chainer/model");
+	long long elapsed = 0;
 
-			NN::y_t y;
+	const int itr_num = numberOfImages.val / batch_size;
+	const int epoch_num = 20;
+	auto start = chrono::system_clock::now();
+	for (int epoch = 0; epoch < epoch_num; epoch++) {
+		for (int itr = 0; itr < itr_num; itr++)
+		{
+			float* x = images + IMAGE_H * IMAGE_W * itr * batch_size;
 
-			while (!ready)
-				this_thread::yield();
-			start_time_th = chrono::system_clock::now();
-
-			const int itr_num = numberOfImages.val / batch_size / gpu_num;
-			for (int epoch = 0; epoch < 20; epoch++) {
-				for (int itr = 0; itr < itr_num; itr++)
-				{
-					float* x = images + (IMAGE_H * IMAGE_W) * (itr + itr_num * gpu);
-
-					auto start = chrono::system_clock::now();
-					nn.foward(x, (float*)y);
-					elapsed_time_th += chrono::system_clock::now() - start;
-
-					itr_th++;
-				}
-			}
-
-			end_time_th = chrono::system_clock::now();
-		});
+			nn.foward(x, (float*)y);
+		}
 	}
+	auto end = chrono::system_clock::now();
+	elapsed += chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
-	// start measurement
-	this_thread::sleep_for(chrono::milliseconds(100));
-	ready = true;
-
-	for (int gpu = 0; gpu < gpu_num; gpu++) {
-		th[gpu].join();
-	}
-
-	for (int gpu = 0; gpu < gpu_num; gpu++) {
-		cout << "gpu:" << gpu << endl;
-		cout << itr[gpu] << " iterations" << endl;
-		auto msec = chrono::duration_cast<std::chrono::milliseconds>(elapsed_time[gpu]).count();
-		cout << msec << " [ms]" << endl;
-	}
-	auto start_total = *min_element(start_time.begin(), start_time.end());
-	auto end_total = *max_element(end_time.begin(), end_time.end());
-	auto elapsed_time_total = end_total - start_total;
-	cout << "total time = " << chrono::duration_cast<std::chrono::milliseconds>(elapsed_time_total).count() << " [ms]" << endl;
+	cout << "itr_num = " << itr_num << endl;
+	cout << "epoch_num = " << epoch_num << endl;
+	cout << "elapsed = " << elapsed << " ns" << endl;
 
 	return 0;
 }
