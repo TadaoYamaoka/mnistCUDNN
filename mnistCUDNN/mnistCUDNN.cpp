@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 	long long elapsed = 0;
 
 	const int itr_num = numberOfImages.val / batch_size;
-	const int epoch_num = 2;
+	const int epoch_num = 20;
 	auto start = chrono::system_clock::now();
 	for (int epoch = 0; epoch < epoch_num; epoch++) {
 		for (int itr = 0; itr < itr_num; itr++)
